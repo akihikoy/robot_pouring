@@ -43,21 +43,25 @@ def report_log(state, total_time, theta, damount, total_amount):
     print('{}, {:.2f}s, {:.1f}rad, {}ml, {}ml'.format(state, total_time, np.rad2deg(theta), damount, total_amount))
     
     
-def tip(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0.9*np.pi, max_dtime = 4, max_time = 60):
+def tip(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0.9*np.pi, max_dtime = 4, max_time = 60, init_angle = 0):
     R = np.sqrt(d**2 + r**2)
     init_theta = np.arctan(r/d)
-    theta = 0
+    # theta = 0
+    theta = init_angle
     dtime = 0
     total_amount_list = [0]
     position_list = [None]
     velocity_list = [None]
     flow_flag = False
     
+    # theta = np.pi*0.25
+    init_position = [0.24,-0.1,0.07,np.sin(-init_angle/2),0,0,np.cos(-init_angle/2)] # 初期姿勢
+    
     # init_position[1] -= r
     # init_position[2] -= d
     init_position2 = deepcopy(init_position)
-    init_position2[1] = init_position2[1] + r - R*np.sin(init_theta)
-    init_position2[2] = init_position2[2] + d - R*np.cos(init_theta)
+    init_position2[1] = init_position2[1] + r - R*np.sin(init_theta + init_angle)
+    init_position2[2] = init_position2[2] + d - R*np.cos(init_theta + init_angle)
     ct.robot.MoveToX(init_position2, 2, blocking=True)
     
     init_time = time()
@@ -101,10 +105,10 @@ def tip(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0.9
             x[2] = init_position[2] + d - R*np.cos(init_theta + theta)
             # x[1] = init_position[1] - R*np.sin(init_theta + theta)
             # x[2] = init_position[2] - R*np.cos(init_theta + theta)
-            x[3] = np.sin(-theta/2)
+            x[3] = np.sin(-theta/2 )
             x[4] = 0
             x[5] = 0
-            x[6] = np.cos(-theta/2)
+            x[6] = np.cos(-theta/2 )
             ct.robot.MoveToX(x, 0.05, blocking=True)
         elif round(damount) == 0 and flow_flag:
             state = 'KEEP'
@@ -136,21 +140,23 @@ def tip(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0.9
     return times, rads, amounts, status, positions, velocities
 
 
-def shake(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0.9*np.pi, max_dtime = 4, max_time = 60, shake_range = 0.4, shake_angle = np.pi/4, shake_time = 1):
+def shake(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0.9*np.pi, max_dtime = 4, max_time = 60, init_angle = 0, shake_range = 0.4, shake_angle = np.pi/4, shake_time = 1):
     R = np.sqrt(d**2 + r**2)
     init_theta = np.arctan(r/d)
-    theta = 0
+    theta = init_angle
     dtime = 0
     total_amount_list = [0]
     position_list = [None]
     velocity_list = [None]
     flow_flag = False
     
+    init_position = [0.24,-0.1,0.07,np.sin(-init_angle/2),0,0,np.cos(-init_angle/2)] # 初期姿勢
+    
     # init_position[1] -= r
     # init_position[2] -= d
     init_position2 = deepcopy(init_position)
-    init_position2[1] = init_position2[1] + r - R*np.sin(init_theta)
-    init_position2[2] = init_position2[2] + d - R*np.cos(init_theta)
+    init_position2[1] = init_position2[1] + r - R*np.sin(init_theta + init_angle)
+    init_position2[2] = init_position2[2] + d - R*np.cos(init_theta + init_angle)
     ct.robot.MoveToX(init_position2, 2, blocking=True)
     
     init_time = time()
@@ -228,27 +234,49 @@ def shake(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0
     terminal_process(ct)
     
     return times, rads, amounts, status, positions, velocities
-    
+
+
+def arg_split(string_arg):
+    return float(string_arg.split('=')[-1])
   
 def Run(ct,*args):
+    max_amount = arg_split(args[0])
+    theta_max = arg_split(args[1])*np.pi
+    max_dtime = arg_split(args[2])
+    max_time = arg_split(args[3])
+    dtheta = arg_split(args[4])
+    
+    shake_range = arg_split(args[5])
+    shake_angle = arg_split(args[6])*np.pi
+    shake_time = arg_split(args[7])
+    
+    init_angle = arg_split(args[8])*np.pi
+    
+    r = arg_split(args[9])
+    d = arg_split(args[10]) + (0.09-r)
+    # skill = 'tip' if args[2] == 0 else 'shake'
+    skill = args[11].split('=')[-1]
+    
+    
+    # example
+    # mysim.actual_machine.sim.feedbuck_control_test 'max_amount=100', 'theta_max=0.9', 'max_dtime=4', 'max_time=10', 'dtheta=0.04', 'shake_range=0.04', 'shake_angle=0.5', 'shake_time=0.2', 'init_angle=0.25', 'r=0.045', 'd=0.05', 's=shake'
+    
     # skill = 'tip' # tip or shake
     # skill = 'shake'
-    
     # r = 0.045 # ノズル半径
     # d = 0.08 # 把持位置から容器口までの高さ
-    r = args[0]
-    d = args[1]
-    skill = 'tip' if args[2] == 0 else 'shake'
     
-    max_amount = 100
-    theta_max = 0.9*np.pi
-    max_dtime = 4
-    max_time = 10
-    dtheta = 0.04
+    # max_amount = 100
+    # theta_max = 0.9*np.pi
+    # max_dtime = 4
+    # max_time = 10
+    # dtheta = 0.04
     
-    shake_range = 0.04
-    shake_angle = np.pi/2
-    shake_time = 0.2
+    # shake_range = 0.04
+    # shake_angle = 0.5*np.pi
+    # shake_time = 0.2
+    
+    # init_angle = np.pi*0.5
     
     port = '/weight/value'
     
@@ -264,13 +292,13 @@ def Run(ct,*args):
     # 初期姿勢に移動
     ct.robot.MoveToQ([0.]*ct.robot.DoF(), 2, blocking=True)
     # init_position = [0.22,-0.1,0.1,0,0,0,1] # 初期姿勢    
-    init_position = [0.24,-0.1,0.07,0,0,0,1] # 初期姿勢    
+    init_position = [0.24,-0.1,0.07,0,0,0,1] # 初期姿勢
     
     # メインの処理
     if skill == 'tip':
-        times, rads, amounts, status, positions, velocities = tip(ct, port, init_position, d, r, dtheta, max_amount, theta_max, max_dtime, max_time)
+        times, rads, amounts, status, positions, velocities = tip(ct, port, init_position, d, r, dtheta, max_amount, theta_max, max_dtime, max_time, init_angle)
     elif skill == 'shake':
-        times, rads, amounts, status, positions, velocities = shake(ct, port, init_position, d, r, dtheta, max_amount, theta_max, max_dtime, max_time, shake_range, shake_angle, shake_time)
+        times, rads, amounts, status, positions, velocities = shake(ct, port, init_position, d, r, dtheta, max_amount, theta_max, max_dtime, max_time, init_angle, shake_range, shake_angle, shake_time)
     else:
         raise(Exception)
     
