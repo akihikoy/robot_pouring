@@ -257,15 +257,31 @@ def shake(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0
             x[1] = init_position[1] + r - R*np.sin(init_theta + theta_max)
             x[2] = init_position[2] + d - R*np.cos(init_theta + theta_max)
             
-            x_tmp = deepcopy(x)
-            x_tmp[1] -= (shake_range/2)*np.sin(shake_angle)
-            x_tmp[2] += (shake_range/2)*np.cos(shake_angle)
-            ct.robot.MoveToX(x_tmp, shake_time/2, blocking=True)
-            x_tmp = deepcopy(x)
-            x_tmp[1] += (shake_range/2)*np.sin(shake_angle)
-            x_tmp[2] -= (shake_range/2)*np.cos(shake_angle)
-            ct.robot.MoveToX(x_tmp, shake_time, blocking=True)
-            ct.robot.MoveToX(x, shake_time/2, blocking=True)
+            x1 = deepcopy(x)
+            x1[1] -= shake_range*np.sin(shake_angle)
+            x1[2] += shake_range*np.cos(shake_angle)
+            
+            x2 = deepcopy(x)
+            x2[1] += shake_range*np.sin(shake_angle)
+            x2[2] -= shake_range*np.cos(shake_angle)
+            
+            x_traj=[x1]+XInterpolation(x1, x2, 5)+XInterpolation(x2, x1, 5)
+            t_traj=TTrajFromXTraj(x_traj, 0.5, 0.01)
+            ct.robot.FollowXTraj(x_traj,t_traj, blocking=True)
+            # sleep(t_traj[-1])
+            
+            # x[1] = init_position[1] + r - R*np.sin(init_theta + theta_max)
+            # x[2] = init_position[2] + d - R*np.cos(init_theta + theta_max)
+            
+            # x_tmp = deepcopy(x)
+            # x_tmp[1] -= (shake_range/2)*np.sin(shake_angle)
+            # x_tmp[2] += (shake_range/2)*np.cos(shake_angle)
+            # ct.robot.MoveToX(x_tmp, shake_time/2, blocking=True)
+            # x_tmp = deepcopy(x)
+            # x_tmp[1] += (shake_range/2)*np.sin(shake_angle)
+            # x_tmp[2] -= (shake_range/2)*np.cos(shake_angle)
+            # ct.robot.MoveToX(x_tmp, shake_time, blocking=True)
+            # ct.robot.MoveToX(x, shake_time/2, blocking=True)
         else:
             state = 'Exception'
             raise(Exception)
