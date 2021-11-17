@@ -11,6 +11,8 @@ from time import time
 import os
 from glob import glob
 import pandas as pd
+import quaternion
+
 
 
 def Help():
@@ -29,12 +31,21 @@ def update_joint_state(position_list, velocity_list, msg):
 def init_process():
     pass
     
-def terminal_process(ct):
+def terminal_process(ct, theta, init_position):
     x = deepcopy(ct.robot.FK())
-    x[3] = 0
-    x[4] = 0
-    x[5] = 0
-    x[6] = 1
+    
+    q1 = deepcopy(x[3:])
+    q2 = QFromAxisAngle([1.,0,0],+theta)
+    q3 = MultiplyQ(q2,q1)
+    x[3] = q3[0]
+    x[4] = q3[1]
+    x[5] = q3[2]
+    x[6] = q3[3]
+    
+    # x[3] = 0
+    # x[4] = 0
+    # x[5] = 0
+    # x[6] = 1
     ct.robot.MoveToX(x, 1, blocking=True)
     ct.DelSub('weight_value')
     ct.DelSub('joint_states')
@@ -54,8 +65,10 @@ def tip(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0.9
     velocity_list = [None]
     flow_flag = False
     
+    ct.robot.MoveToX(init_position, 2, blocking=True)
+    
     # theta = np.pi*0.25
-    init_position = [0.24,-0.1,0.07,np.sin(-init_angle/2),0,0,np.cos(-init_angle/2)] # 初期姿勢
+    # init_position = [0.24,-0.1,0.07,np.sin(-init_angle/2),0,0,np.cos(-init_angle/2)] # 初期姿勢
     
     # init_position[1] -= r
     # init_position[2] -= d
@@ -105,10 +118,35 @@ def tip(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0.9
             x[2] = init_position[2] + d - R*np.cos(init_theta + theta)
             # x[1] = init_position[1] - R*np.sin(init_theta + theta)
             # x[2] = init_position[2] - R*np.cos(init_theta + theta)
-            x[3] = np.sin(-theta/2 )
-            x[4] = 0
-            x[5] = 0
-            x[6] = np.cos(-theta/2 )
+            # x[3] = np.sin(-theta/2 )
+            # x[4] = 0
+            # x[5] = 0
+            # x[6] = np.cos(-theta/2 )
+            
+            # tmp_q = np.outer(x[3:], [np.sin(-theta/2),0,0, np.cos(-theta/2)])
+            # x[3] = tmp_q[0]
+            # x[4] = tmp_q[1]
+            # x[5] = tmp_q[2]
+            # x[6] = tmp_q[3]
+            
+            # q1 = np.quaternion(*x[3:])
+            # q2 = np.quaternion(*[np.sin(-theta/2),0,0, np.cos(-theta/2)])
+            # q1 = np.quaternion(x[6],x[3],x[4],x[5])
+            # q2 = np.quaternion(np.cos(-theta/2),np.sin(-theta/2),0,0)
+            # q3 = q1*q2
+            # x[3] = q3.x
+            # x[4] = q3.y
+            # x[5] = q3.z
+            # x[6] = q3.w
+            
+            q1 = deepcopy(init_position[3:])
+            q2 = QFromAxisAngle([1.,0,0],-theta)
+            q3 = MultiplyQ(q2,q1)
+            x[3] = q3[0]
+            x[4] = q3[1]
+            x[5] = q3[2]
+            x[6] = q3[3]
+            
             ct.robot.MoveToX(x, 0.05, blocking=True)
         elif round(damount) == 0 and flow_flag:
             state = 'KEEP'
@@ -135,7 +173,7 @@ def tip(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0.9
         velocities.append(velocity_list[0])
 
     print("Finish Tiping")
-    terminal_process(ct)
+    terminal_process(ct, theta, init_position)
     
     return times, rads, amounts, status, positions, velocities
 
@@ -150,7 +188,7 @@ def shake(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0
     velocity_list = [None]
     flow_flag = False
     
-    init_position = [0.24,-0.1,0.07,np.sin(-init_angle/2),0,0,np.cos(-init_angle/2)] # 初期姿勢
+    # init_position = [0.24,-0.1,0.07,np.sin(-init_angle/2),0,0,np.cos(-init_angle/2)] # 初期姿勢
     
     # init_position[1] -= r
     # init_position[2] -= d
@@ -290,9 +328,10 @@ def Run(ct,*args):
     os.mkdir(logdir)
     
     # 初期姿勢に移動
-    ct.robot.MoveToQ([0.]*ct.robot.DoF(), 2, blocking=True)
+    # ct.robot.MoveToQ([0.]*ct.robot.DoF(), 2, blocking=True)
     # init_position = [0.22,-0.1,0.1,0,0,0,1] # 初期姿勢    
-    init_position = [0.24,-0.1,0.07,0,0,0,1] # 初期姿勢
+    # init_position = [0.24,-0.1,0.07,0,0,0,1] # 初期姿勢
+    init_position = [0.25, 0.0235149419831686, 0.12064477698830921, -0.4999954388940641, 0.5000045609618852, -0.49998631655460113, 0.5000136831733775]
     
     # メインの処理
     if skill == 'tip':
