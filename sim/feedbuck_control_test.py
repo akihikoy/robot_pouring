@@ -178,7 +178,7 @@ def tip(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0.9
     return times, rads, amounts, status, positions, velocities
 
 
-def shake(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0.9*np.pi, max_dtime = 4, max_time = 60, init_angle = 0, shake_range = 0.4, shake_angle = np.pi/4, shake_time = 1):
+def shake(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0.9*np.pi, max_dtime = 4, max_time = 60, init_angle = 0, shake_range = 0.4, shake_angle = np.pi/4, shake_spd = 1):
     R = np.sqrt(d**2 + r**2)
     init_theta = np.arctan(r/d)
     theta = init_angle
@@ -266,7 +266,7 @@ def shake(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0
             # x2[2] -= shake_range*np.cos(shake_angle)
             
             x_traj=[x]+XInterpolation(x, x1, 5)+XInterpolation(x1, x, 5)
-            t_traj=TTrajFromXTraj(x_traj, 0.2, 0.01)
+            t_traj=TTrajFromXTraj(x_traj, shake_spd, 0.01)
             ct.robot.FollowXTraj(x_traj,t_traj, blocking=True)
             # sleep(t_traj[-1])
             
@@ -312,7 +312,7 @@ def Run(ct,*args):
     
     shake_range = arg_split(args[5])
     shake_angle = arg_split(args[6])*np.pi
-    shake_time = arg_split(args[7])
+    shake_spd = arg_split(args[7])
     
     init_angle = arg_split(args[8])*np.pi
     
@@ -364,7 +364,7 @@ def Run(ct,*args):
     if skill == 'tip':
         times, rads, amounts, status, positions, velocities = tip(ct, port, init_position, d, r, dtheta, max_amount, theta_max, max_dtime, max_time, init_angle)
     elif skill == 'shake':
-        times, rads, amounts, status, positions, velocities = shake(ct, port, init_position, d, r, dtheta, max_amount, theta_max, max_dtime, max_time, init_angle, shake_range, shake_angle, shake_time)
+        times, rads, amounts, status, positions, velocities = shake(ct, port, init_position, d, r, dtheta, max_amount, theta_max, max_dtime, max_time, init_angle, shake_range, shake_angle, shake_spd)
     else:
         raise(Exception)
     
