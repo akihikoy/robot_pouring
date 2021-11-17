@@ -7,11 +7,10 @@ import numpy as np
 import std_msgs
 import ay_util_msgs.msg
 from sensor_msgs.msg import JointState
-from time import time
+from time import time, sleep
 import os
 from glob import glob
 import pandas as pd
-import quaternion
 
 
 
@@ -31,7 +30,7 @@ def update_joint_state(position_list, velocity_list, msg):
 def init_process():
     pass
     
-def terminal_process(ct, theta, init_position):
+def terminal_process(ct, theta):
     x = deepcopy(ct.robot.FK())
     
     q1 = deepcopy(x[3:])
@@ -147,7 +146,8 @@ def tip(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0.9
             x[5] = q3[2]
             x[6] = q3[3]
             
-            ct.robot.MoveToX(x, 0.05, blocking=True)
+            ct.robot.MoveToX(x, 1, blocking=False)
+            sleep(0.5)
         elif round(damount) == 0 and flow_flag:
             state = 'KEEP'
             report_log(state, total_time, theta, damount, total_amount)
@@ -173,7 +173,7 @@ def tip(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0.9
         velocities.append(velocity_list[0])
 
     print("Finish Tiping")
-    terminal_process(ct, theta, init_position)
+    terminal_process(ct, theta)
     
     return times, rads, amounts, status, positions, velocities
 
@@ -232,13 +232,23 @@ def shake(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0
             x = deepcopy(ct.robot.FK())
             x[1] = init_position[1] + r - R*np.sin(init_theta + theta)
             x[2] = init_position[2] + d - R*np.cos(init_theta + theta)
-            # x[1] = init_position[1] - R*np.sin(init_theta + theta)
-            # x[2] = init_position[2] - R*np.cos(init_theta + theta)
-            x[3] = np.sin(-theta/2)
-            x[4] = 0
-            x[5] = 0
-            x[6] = np.cos(-theta/2)
-            ct.robot.MoveToX(x, 0.05, blocking=True)
+            # # x[1] = init_position[1] - R*np.sin(init_theta + theta)
+            # # x[2] = init_position[2] - R*np.cos(init_theta + theta)
+            # x[3] = np.sin(-theta/2)
+            # x[4] = 0
+            # x[5] = 0
+            # x[6] = np.cos(-theta/2)
+            
+            q1 = deepcopy(init_position[3:])
+            q2 = QFromAxisAngle([1.,0,0],-theta)
+            q3 = MultiplyQ(q2,q1)
+            x[3] = q3[0]
+            x[4] = q3[1]
+            x[5] = q3[2]
+            x[6] = q3[3]
+            
+            ct.robot.MoveToX(x, 1, blocking=False)
+            sleep(0.5)
         elif theta >= theta_max:
             state = 'SHAKE'
             report_log(state, total_time, theta, damount, total_amount)
@@ -269,7 +279,7 @@ def shake(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0
         velocities.append(velocity_list[0])
 
     print("Finish Shaking")
-    terminal_process(ct)
+    terminal_process(ct, theta)
     
     return times, rads, amounts, status, positions, velocities
 
@@ -319,7 +329,8 @@ def Run(ct,*args):
     port = '/weight/value'
     
     # ログディレクトリ生成
-    base_logdir = '/home/yashima/ros_ws/ay_tools/ay_skill_extra/mysim/actual_machine/logs/'
+    # base_logdir = '/home/yashima/ros_ws/ay_tools/ay_skill_extra/mysim/actual_machine/logs/'
+    base_logdir = ct.DataBaseDir()+'robot_pour/'
     base_logdir += '{}_r{}_d{}_tm{}_ma{}_md{}_mt{}_dt{}/'.format(skill,r,d,theta_max,max_amount,max_dtime,max_time,dtheta)
     if not os.path.exists(base_logdir):
         os.mkdir(base_logdir)
