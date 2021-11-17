@@ -261,12 +261,12 @@ def shake(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0
             x1[1] -= shake_range*np.sin(shake_angle)
             x1[2] += shake_range*np.cos(shake_angle)
             
-            x2 = deepcopy(x)
-            x2[1] += shake_range*np.sin(shake_angle)
-            x2[2] -= shake_range*np.cos(shake_angle)
+            # x2 = deepcopy(x)
+            # x2[1] += shake_range*np.sin(shake_angle)
+            # x2[2] -= shake_range*np.cos(shake_angle)
             
-            x_traj=[x1]+XInterpolation(x1, x2, 5)+XInterpolation(x2, x1, 5)
-            t_traj=TTrajFromXTraj(x_traj, 0.5, 0.01)
+            x_traj=[x]+XInterpolation(x, x1, 5)+XInterpolation(x1, x, 5)
+            t_traj=TTrajFromXTraj(x_traj, 0.2, 0.01)
             ct.robot.FollowXTraj(x_traj,t_traj, blocking=True)
             # sleep(t_traj[-1])
             
@@ -358,7 +358,7 @@ def Run(ct,*args):
     # ct.robot.MoveToQ([0.]*ct.robot.DoF(), 2, blocking=True)
     # init_position = [0.22,-0.1,0.1,0,0,0,1] # 初期姿勢    
     # init_position = [0.24,-0.1,0.07,0,0,0,1] # 初期姿勢
-    init_position = [0.25, 0.0235149419831686, 0.12064477698830921, -0.4999954388940641, 0.5000045609618852, -0.49998631655460113, 0.5000136831733775]
+    init_position = [0.25, 0.0235149419831686, 0.2264477698830921, -0.4999954388940641, 0.5000045609618852, -0.49998631655460113, 0.5000136831733775]
     
     # メインの処理
     if skill == 'tip':
