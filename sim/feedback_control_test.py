@@ -21,18 +21,22 @@ class DummyDataLoader:
     def __init__(self):
         self.start_time = time()
         self.total_amount = 0
+        self.prev_time = time()
         
     def gen(self):
         dt = time() - self.start_time
-        if dt <=10:
-            damount = 0
-        elif dt <= 40:
-            damount = 0.01
+        if time() - self.prev_time >= 0.1:
+            if dt <=10:
+                damount = 0
+            elif dt <= 40:
+                damount = 0.01
+            else:
+                damount = 0.1
+            self.prev_time = time()
         else:
-            damount = 0.1
+            damount = 0
         
         self.total_amount += damount
-        sleep(0.1)
         
         return self.total_amount
 
@@ -157,13 +161,14 @@ def rotate(ct, theta, dtheta, R, r, d, init_position, init_theta, logger):
     ideal_move_time = 1
     sleep_time = 0.5
     
-    theta_trg = theta + dtheta
+    theta += dtheta
+    # theta_trg = theta + dtheta
     x = deepcopy(ct.robot.FK())
-    x[1] = init_position[1] + r - R*np.sin(init_theta + theta_trg)
-    x[2] = init_position[2] + d - R*np.cos(init_theta + theta_trg)
+    x[1] = init_position[1] + r - R*np.sin(init_theta + theta)
+    x[2] = init_position[2] + d - R*np.cos(init_theta + theta)
             
     q1 = deepcopy(init_position[3:])
-    q2 = QFromAxisAngle([1.,0,0],-theta_trg)
+    q2 = QFromAxisAngle([1.,0,0],-theta)
     q3 = MultiplyQ(q2,q1)
     x[3] = q3[0]
     x[4] = q3[1]
@@ -182,7 +187,7 @@ def rotate(ct, theta, dtheta, R, r, d, init_position, init_theta, logger):
         if time() - t1 >= sleep_time:
             break
     
-    theta += dtheta*sleep_time/ideal_move_time
+    # theta += dtheta*sleep_time/ideal_move_time
     return theta
         
     
