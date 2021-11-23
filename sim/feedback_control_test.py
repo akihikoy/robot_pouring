@@ -228,12 +228,14 @@ def tip(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0.9
                 dtime = time() - flow_start_time
                 if dtime >= max_dtime:
                     flow_flag = False
+                    
         elif damount >= 0:
             state = 'FLOW'
             flow_flag = True
             dtime = 0
             flow_start_time = time()
             total_amount_at_flow_frame = total_amount
+            
         else:
             state = 'Exception'
             
@@ -260,152 +262,63 @@ def tip(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0.9
 
 
 def shake(ct, port, init_position, d, r, dtheta, max_amount = 100, theta_max = 0.9*np.pi, max_dtime = 4, max_time = 60, init_angle = 0, shake_range = 0.4, shake_angle = np.pi/4, shake_spd = 1):
-    R = np.sqrt(d**2 + r**2)
-    init_theta = np.arctan(r/d)
-    theta = init_angle
-    dtime = 0
-    total_amount_list = [0]
-    position_list = [None]
-    velocity_list = [None]
-    flow_flag = False
-    init_amount = ct.GetAttr(TMP,'weight').value
+    log_time_after_execute = 5
     
-    # init_position = [0.24,-0.1,0.07,np.sin(-init_angle/2),0,0,np.cos(-init_angle/2)] # 初期姿勢
+    R, init_theta, theta, dtime, flow_flag, init_amount, init_time, total_time, flow_start_time, prev_total_amount, prev_state = set_init_velue(ct,d,r,init_angle)
+    init_move(ct,d,r,init_position,init_angle,init_theta)
     
-    # init_position[1] -= r
-    # init_position[2] -= d
-    init_position2 = deepcopy(init_position)
-    init_position2[1] = init_position2[1] + r - R*np.sin(init_theta + init_angle)
-    init_position2[2] = init_position2[2] + d - R*np.cos(init_theta + init_angle)
-    ct.robot.MoveToX(init_position2, 2, blocking=True)
-    
-    init_time = time()
-    total_time = 0
-    flow_start_time = None
-    prev_total_amount = 0
+    logger = InfoLogger(init_amount, init_time)
     
     print("Start Shaking")
-    amounts = []
-    times = []
-    rads = []
-    status = []
-    positions = []
-    velocities = []
+    end_flag = False
     while not rospy.is_shutdown():
-        #total_amount = total_amount_list[0]
-        total_amount = ct.GetAttr(TMP,'weight').value - init_amount
-        damount = max(total_amount - prev_total_amount, 0)
-        total_time = time() - init_time
+        total_amount, damount, total_time = get_amount_and_time(ct,init_amount,prev_total_amount,init_time)
         
         if total_amount >= max_amount:
             state = 'MAX AMOUNT'
-            report_log(state, total_time, theta, damount, total_amount)
-            break 
+            end_flag = True
+            
         elif total_time >= max_time:
             state = 'MAX TIME'
-            report_log(state, total_time, theta, damount, total_amount)
-            break 
+            end_flag = True
+            
         elif theta < theta_max:
             state = 'ROTATE'
-            report_log(state, total_time, theta, damount, total_amount)
-            theta += dtheta
-            x = deepcopy(ct.robot.FK())
-            x[1] = init_position[1] + r - R*np.sin(init_theta + theta)
-            x[2] = init_position[2] + d - R*np.cos(init_theta + theta)
-            # # x[1] = init_position[1] - R*np.sin(init_theta + theta)
-            # # x[2] = init_position[2] - R*np.cos(init_theta + theta)
-            # x[3] = np.sin(-theta/2)
-            # x[4] = 0
-            # x[5] = 0
-            # x[6] = np.cos(-theta/2)
+            theta = rotate(ct, theta, dtheta, R, r, d, init_position, init_theta, logger)
             
-            q1 = deepcopy(init_position[3:])
-            q2 = QFromAxisAngle([1.,0,0],-theta)
-            q3 = MultiplyQ(q2,q1)
-            x[3] = q3[0]
-            x[4] = q3[1]
-            x[5] = q3[2]
-            x[6] = q3[3]
-            
-            ct.robot.MoveToX(x, 1, blocking=False)
-            sleep(0.5)
         elif theta >= theta_max:
             state = 'SHAKE'
-            report_log(state, total_time, theta, damount, total_amount)
-            
             x = deepcopy(ct.robot.FK())
-            #x[1] = init_position[1] + r - R*np.sin(init_theta + theta_max)
-            #x[2] = init_position[2] + d - R*np.cos(init_theta + theta_max)
-            
             x1 = deepcopy(x)
             x1[1] -= shake_range*np.sin(shake_angle)
             x1[2] += shake_range*np.cos(shake_angle)
             
-            # x2 = deepcopy(x)
-            # x2[1] += shake_range*np.sin(shake_angle)
-            # x2[2] -= shake_range*np.cos(shake_angle)
-            
-            #x_traj=[x]+XInterpolation(x, x1, 5)+XInterpolation(x1, x, 5)
-            #t_traj=TTrajFromXTraj(x_traj, shake_spd, 0.01)
-            #ct.robot.FollowXTraj(x_traj,t_traj, blocking=True)
-            # sleep(t_traj[-1])
-            
-            # x[1] = init_position[1] + r - R*np.sin(init_theta + theta_max)
-            # x[2] = init_position[2] + d - R*np.cos(init_theta + theta_max)
-            
-            # x_tmp = deepcopy(x)
-            # x_tmp[1] -= (shake_range/2)*np.sin(shake_angle)
-            # x_tmp[2] += (shake_range/2)*np.cos(shake_angle)
-            # ct.robot.MoveToX(x_tmp, shake_time/2, blocking=True)
-            # x_tmp = deepcopy(x)
-            # x_tmp[1] += (shake_range/2)*np.sin(shake_angle)
-            # x_tmp[2] -= (shake_range/2)*np.cos(shake_angle)
             ct.robot.MoveToX(x1, shake_range/shake_spd, blocking=True)
             ct.robot.MoveToX(x, shake_range/shake_spd, blocking=True)
+            
         else:
             state = 'Exception'
-            report_log(state, total_time, theta, damount, total_amount)
-            #raise(Exception)
         
-        prev_total_amount = total_amount
+        logger.update_and_report_log(ct, total_amount, damount, total_time, theta, state, is_state_change=(state!=prev_state))
+        prev_total_amount, prev_state = set_prev_value(total_amount, state)
         
-        # def update_and_report_log():
-        #     amounts.append(total_amount)
-        #     times.append(total_time)
-        #     rads.append(theta)
-        #     status.append(state)
-        #     positions.append(ct.robot.Q())
-        #     velocities.append(ct.robot.DQ())
-            
-        if len(times) == 0:
-            update_and_report_log()
-        elif (total_time - times[-1]) >= 0.01:
-            update_and_report_log()
+        if end_flag:
+            break
 
-    print("Finish Shaking")
+    print("Finish Shaking ({})".format(state))
     terminal_process(ct, theta)
     
+    state = 'END'
     t1 = time()
-    #while True:
     while not rospy.is_shutdown():
-        total_amount = ct.GetAttr(TMP,'weight').value - init_amount
-        damount = max(total_amount - prev_total_amount, 0)
-        total_time = time() - init_time
+        total_amount, damount, total_time = get_amount_and_time(ct,init_amount,prev_total_amount,init_time)
+        prev_total_amount, prev_state = set_prev_value(total_amount, state)
+        logger.update_and_report_log(ct, total_amount, damount, total_time, theta, state, is_state_change=(state!=prev_state))
         
-        if (total_time - times[-1]) >= 0.01:
-            report_log('END', total_time, theta, damount, total_amount)
-            prev_total_amount = total_amount
-            amounts.append(total_amount)
-            times.append(total_time)
-            rads.append(theta)
-            status.append(state)
-            positions.append(ct.robot.Q())
-            velocities.append(ct.robot.DQ())
-        
-        if time()-t1 >= 5:
+        if time()-t1 >= log_time_after_execute:
             break
-    
-    return times, rads, amounts, status, positions, velocities
+            
+    return logger.get_df()
 
 
 def arg_split(string_arg):
@@ -431,7 +344,7 @@ def Run(ct,*args):
 
     logtype = args[12].split('=')[-1]
     
-    # example
+    ### example
     # mysim.actual_machine.sim.feedbuck_control_test 'max_amount=100', 'theta_max=0.9', 'max_dtime=4', 'max_time=10', 'dtheta=0.04', 'shake_range=0.04', 'shake_angle=0.5', 'shake_time=0.2', 'init_angle=0.25', 'r=0.045', 'd=0.05', 's=shake'
     
     # skill = 'tip' # tip or shake
@@ -473,7 +386,7 @@ def Run(ct,*args):
     if skill == 'tip':
         df = tip(ct, port, init_position, d, r, dtheta, max_amount, theta_max, max_dtime, max_time, init_angle)
     elif skill == 'shake':
-        times, rads, amounts, status, positions, velocities = shake(ct, port, init_position, d, r, dtheta, max_amount, theta_max, max_dtime, max_time, init_angle, shake_range, shake_angle, shake_spd)
+        df = shake(ct, port, init_position, d, r, dtheta, max_amount, theta_max, max_dtime, max_time, init_angle, shake_range, shake_angle, shake_spd)
     else:
         raise(Exception)
     
