@@ -325,44 +325,28 @@ def arg_split(string_arg):
     return float(string_arg.split('=')[-1])
   
 def Run(ct,*args):
-    max_amount = arg_split(args[0])
-    theta_max = arg_split(args[1])*np.pi
-    max_dtime = arg_split(args[2])
-    max_time = arg_split(args[3])
-    dtheta = arg_split(args[4])
-    
-    shake_range = arg_split(args[5])
-    shake_angle = arg_split(args[6])*np.pi
-    shake_spd = arg_split(args[7])
-    
-    init_angle = arg_split(args[8])*np.pi
-    
-    r = arg_split(args[9])
-    d = arg_split(args[10]) + (0.045-r)
-    # skill = 'tip' if args[2] == 0 else 'shake'
-    skill = args[11].split('=')[-1]
-
-    logtype = args[12].split('=')[-1]
-    
     ### example
-    # mysim.actual_machine.sim.feedbuck_control_test 'max_amount=100', 'theta_max=0.9', 'max_dtime=4', 'max_time=10', 'dtheta=0.04', 'shake_range=0.04', 'shake_angle=0.5', 'shake_time=0.2', 'init_angle=0.25', 'r=0.045', 'd=0.05', 's=shake'
+    # robot_pouring.sim.feedback_control_test 'max_amount=100', 'theta_max=0.9', 'max_dtime=4', 'max_time=50', 'dtheta=0.04', 'shake_range=0.04', 'shake_angle=0.', 'shake_time=0.2', 'init_angle=0.25', 'r=0.045', 'd=0.05', 's=tip', 'logtype=test'
     
-    # skill = 'tip' # tip or shake
-    # skill = 'shake'
-    # r = 0.045 # ノズル半径
-    # d = 0.08 # 把持位置から容器口までの高さ
+    for arg in args:
+        key, value = arg.split('=')
+        if key == 'max_amount': max_amount = float(value)
+        elif key == 'theta_max': theta_max = float(value)*np.pi
+        elif key == 'max_dtime': max_dtime = float(value)
+        elif key == 'max_time': max_time = float(value)
+        elif key == 'dtheta': dtheta = float(value)
+        
+        elif key == 'shake_range': shake_range = float(value)
+        elif key == 'shake_angle': shake_angle = float(value)*np.pi
+        elif key == 'shake_spd': shake_spd = float(value)        
     
-    # max_amount = 100
-    # theta_max = 0.9*np.pi
-    # max_dtime = 4
-    # max_time = 10
-    # dtheta = 0.04
-    
-    # shake_range = 0.04
-    # shake_angle = 0.5*np.pi
-    # shake_time = 0.2
-    
-    # init_angle = np.pi*0.5
+        elif key == 'init_angle': init_angle = float(value)*np.pi
+        
+        elif key == 'r': r = float(value)
+        elif key == 'd': d = float(value) - r
+        elif key == 's': skill = value
+        
+        elif key == 'logtype': logtype = value
     
     port = '/weight/value'
     
